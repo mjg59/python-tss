@@ -321,6 +321,15 @@ class TspiTPM(TspiObject):
         tss_lib.Tspi_Context_FreeMemory(self.context, cred[0])
         return ret
 
+    def get_pub_endorsement_key(self):
+        keyblob = ffi.new('TSS_HKEY *')
+        modulus = ffi.new('UINT32 *')
+        modlen = ffi.new('BYTE **')
+        tss_lib.Tspi_TPM_GetPubEndorsementKey(self.get_handle(), 1, ffi.NULL,
+                                              keyblob)
+        key = TspiObject(self.context, None, None, None, handle=keyblob)
+        return key
+
 
 class TspiContext():
     def __init__(self):

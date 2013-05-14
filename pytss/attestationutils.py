@@ -276,6 +276,20 @@ def tpm_oaep(plaintext, keylen):
 
     return output
 
+def get_ek(context):
+    """Retrieve the raw Endorsement Key from the TPM.
+
+    :param context: The TSS context to use
+    :returns: a TspiObject representing the Endorsement Key
+    """
+    tpm = context.get_tpm_object()
+    try:
+        return tpm.get_pub_endorsement_key()
+    except tspi_exceptions.TSS_E_POLICY_NO_SECRET:
+        policy = context.create_policy(TSS_POLICY_USAGE)
+        policy.set_secret(TSS_SECRET_MODE_SHA1, well_known_secret)
+        policy.assign(tpm)
+        return tpm.get_pub_endorsement_key()
 
 def get_ekcert(context):
     """Retrieve the Endoresement Key's certificate from the TPM.
@@ -283,7 +297,6 @@ def get_ekcert(context):
     :param context: The TSS context to use
     :returns: a bytearray containing the x509 certificate
     """
-    # fixme
     nvIndex = TSS_NV_DEFINED | TPM_NV_INDEX_EKCert
 
     nv = context.create_nv(0)
@@ -394,7 +407,7 @@ def verify_ek(context, ekcert):
     return verified
 
 
-def generate_challenge(context, ekcert, aikpub, secret):
+def generate_challenge(context, ekcert, aikpub, secret, ek=None):
     """ Generate a challenge to verify that the AIK is under the control of
     the TPM we're talking to.
 
@@ -402,6 +415,8 @@ def generate_challenge(context, ekcert, aikpub, secret):
     :param ekcert: The Endorsement Key certificate
     :param aikpub: The public Attestation Identity Key
     :param secret: The secret to challenge the TPM with
+    :param ek: TspiObject representing ek. ekcert is ignored if ek is provided.
+
     :returns: a tuple containing the asymmetric and symmetric components of
     the challenge
     """
@@ -409,13 +424,22 @@ def generate_challenge(context, ekcert, aikpub, secret):
     aeskey = bytearray(os.urandom(16))
     iv = bytearray(os.urandom(16))
 
-    # Replace rsaesOaep OID with rsaEncryption
-    ekcert = ekcert.replace('\x2a\x86\x48\x86\xf7\x0d\x01\x01\x07',
-                            '\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01')
+    if ek is None:
+        # Replace rsaesOaep OID with rsaEncryption
+        ekcert = ekcert.replace('\x2a\x86\x48\x86\xf7\x0d\x01\x01\x07',
+                                '\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01')
 
-    x509 = M2Crypto.X509.load_cert_string(ekcert, M2Crypto.X509.FORMAT_DER)
-    pubkey = x509.get_pubkey()
-    rsakey = pubkey.get_rsa()
+        x509 = M2Crypto.X509.load_cert_string(ekcert, M2Crypto.X509.FORMAT_DER)
+        pubkey = x509.get_pubkey()
+        rsakey = pubkey.get_rsa()
+    else:
+        pubkey = ek.get_attribute_data(TSS_TSPATTRIB_RSAKEY_INFO,
+                                       TSS_TSPATTRIB_KEYINFO_RSA_MODULUS)
+        n = m2.bin_to_bn(pubkey)
+        n = m2.bn_to_mpi(n)
+        e = m2.hex_to_bn("010001")
+        e = m2.bn_to_mpi(e)
+        rsakey = M2Crypto.RSA.new_pub_key((e, n))
 
     # TPM_ALG_AES, TPM_ES_SYM_CBC_PKCS5PAD, key length
     asymplain = bytearray([0x00, 0x00, 0x00, 0x06, 0x00, 0xff, 0x00, 0x10])
@@ -426,7 +450,7 @@ def generate_challenge(context, ekcert, aikpub, secret):
     asymplain += m.digest()
 
     # Pad with the TCG varient of OAEP
-    asymplain = tpm_oaep(asymplain, pubkey.size())
+    asymplain = tpm_oaep(asymplain, len(rsakey)/8)
 
     # Generate the EKpub-encrypted asymmetric buffer containing the aes key
     asymenc = bytearray(rsakey.public_encrypt(asymplain,
