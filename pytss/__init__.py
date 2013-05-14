@@ -329,16 +329,19 @@ class TspiContext():
         self.context = self.context[0]
         self.tpm = None
 
-    def connect(self, host=ffi.NULL):
+    def connect(self, host=None):
         """
         Connect a context to a TSS daemon
 
         :param host: The host to connect to, if not localhost
         """
-        if self.tpm is not None:
-            print "Already connected"
-
-        tss_lib.Tspi_Context_Connect(self.context, host)
+        if host is not None:
+            chost = ffi.new('uint16_t[]', len(host))
+            for i in range(len(host)):
+                chost[i] = bytearray(host)[i]
+            tss_lib.Tspi_Context_Connect(self.context, chost)
+        else:
+            tss_lib.Tspi_Context_Connect(self.context, ffi.NULL)
         self.tpm = TspiTPM(self.context)
 
     def create_nv(self, flags):
