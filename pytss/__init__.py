@@ -215,6 +215,49 @@ class TspiHash(TspiObject):
                                      len(quote), cquote)
 
 
+class TspiKey(TspiObject):
+    def __init__(self, context, flags, handle=None):
+        super(TspiKey, self).__init__(context, 'TSS_HKEY *',
+                                      tss_lib.TSS_OBJECT_TYPE_RSAKEY,
+                                      flags, handle)
+
+    def set_modulus(self, n):
+        """
+        Set the key modulus
+
+        :param n: The key modulus
+        """
+        self.set_attribute_data(tss_lib.TSS_TSPATTRIB_RSAKEY_INFO,
+                                tss_lib.TSS_TSPATTRIB_KEYINFO_RSA_MODULUS, n)
+
+    def get_keyblob(self):
+        """
+        Obtain a TSS blob corresponding to the key
+
+        :returns: a bytearray containing the TSS key blob
+        """
+        return self.get_attribute_data(tss_lib.TSS_TSPATTRIB_KEY_BLOB,
+                                       tss_lib.TSS_TSPATTRIB_KEYBLOB_BLOB)
+
+    def get_pubkeyblob(self):
+        """
+        Obtain a TSS blob corresponding to the public portion of the key
+
+        :returns: a bytearray containing the TSS key blob
+        """
+        return self.get_attribute_data(tss_lib.TSS_TSPATTRIB_KEY_BLOB,
+                                       tss_lib.TSS_TSPATTRIB_KEYBLOB_PUBLIC_KEY)
+
+    def get_pubkey(self):
+        """
+        Obtain the public part of the key
+
+        :returns: a bytearray containing the public portion of the key
+        """
+        return self.get_attribute_data(tss_lib.TSS_TSPATTRIB_RSAKEY_INFO,
+                                       tss_lib.TSS_TSPATTRIB_KEYINFO_RSA_MODULUS)
+
+
 class TspiTPM(TspiObject):
     def __init__(self, context):
         tpm = ffi.new('TSS_HTPM *')
@@ -389,14 +432,13 @@ class TspiContext():
         obj = TspiHash(self.context, flags)
         return obj
 
-    def create_rsa_key(self, flags=0):
+    def create_rsa_key(self, flags):
         """
         Create a Tspi key object associated with this context
 
         :param flags: Flags to pass
         """
-        obj = TspiObject(self.context, 'TSS_HKEY *',
-                         tss_lib.TSS_OBJECT_TYPE_RSAKEY, flags)
+        obj = TspiKey(self.context, flags)
         return obj
 
     def load_key_by_uuid(self, storagetype, uuid):
@@ -406,13 +448,13 @@ class TspiContext():
         :param storagetype: The key storage type
         :param uuid: The UUID associated with the key
 
-        :returns: a TspiObject representing the key
+        :returns: a TspiKey
         """
         tss_key = ffi.new('TSS_HKEY *')
         tss_uuid = uuid_to_tss_uuid(uuid)
         tss_lib.Tspi_Context_LoadKeyByUUID(self.context, storagetype, tss_uuid,
                                        tss_key)
-        key = TspiObject(self.context, None, None, None, handle=tss_key)
+        key = TspiKey(self.context, None, handle=tss_key)
         return key
 
     def load_key_by_blob(self, srk, blob):
@@ -422,7 +464,7 @@ class TspiContext():
         :param srk: A TspiObject representing the Storage Root key
         :param blob: The TSS key blob
 
-        :returns: A TspiObject representing the key
+        :returns: A TspiKey
         """
         tss_key = ffi.new('TSS_HKEY *')
         cblob = ffi.new('BYTE[]', len(blob))
@@ -430,7 +472,7 @@ class TspiContext():
             cblob[i] = blob[i]
         tss_lib.Tspi_Context_LoadKeyByBlob(self.context, srk.get_handle(),
                                        len(blob), cblob, tss_key)
-        key = TspiObject(self.context, None, None, None, handle=tss_key)
+        key = TspiKey(self.context, None, handle=tss_key)
         return key
 
     def get_tpm_object(self):
