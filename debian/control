@@ -2,7 +2,7 @@ Source: pytss
 Maintainer: Matthew Garrett <matthew.garrett@nebula.com>
 Section: python
 Priority: optional
-Build-Depends: python-setuptools (>= 0.6b3), python-all (>= 2.6.6-3), debhelper (>= 7)
+Build-Depends: python-setuptools (>= 0.6b3), python-all (>= 2.6.6-3), debhelper (>= 7), python-cffi, libtspi-dev 
 Standards-Version: 3.9.1
 
 Package: python-pytss

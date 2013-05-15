@@ -72,7 +72,6 @@ setup(
         ]
     },
 
-    ext_package='pytss',
     ext_modules=ext_modules,
 
     zip_safe=False,
