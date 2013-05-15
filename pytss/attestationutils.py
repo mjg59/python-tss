@@ -552,3 +552,27 @@ def quote_verify(data, validation, aik, pcrvalues):
         return True
     else:
         return False
+
+
+def take_ownership(context):
+    """Take ownership of a TPM
+
+    :param context: The TSS context to use
+
+    :returns: True on ownership being taken, False if the TPM is already owned
+    """
+
+    tpm = context.get_tpm_object()
+    tpmpolicy = tpm.get_policy_object(TSS_POLICY_USAGE)
+    tpmpolicy.set_secret(TSS_SECRET_MODE_SHA1, well_known_secret)
+
+    srk = context.create_rsa_key(TSS_KEY_TSP_SRK | TSS_KEY_AUTHORIZATION)
+    srkpolicy = srk.get_policy_object(TSS_POLICY_USAGE)
+    srkpolicy.set_secret(TSS_SECRET_MODE_SHA1, well_known_secret)
+
+    try:
+        tpm.take_ownership(srk)
+    except tspi_exceptions.TPM_E_DISABLED_CMD:
+        return False
+
+    return True

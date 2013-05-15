@@ -373,6 +373,14 @@ class TspiTPM(TspiObject):
         key = TspiObject(self.context, None, None, None, handle=keyblob)
         return key
 
+    def take_ownership(self, srk):
+        """
+        Take ownership of the TPM
+
+        :param srk: The Storage Root Key to use
+        """
+        tss_lib.Tspi_TPM_TakeOwnership(self.get_handle(), srk.get_handle(), 0)
+
 
 class TspiContext():
     def __init__(self):
