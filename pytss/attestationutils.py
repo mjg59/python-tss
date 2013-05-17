@@ -412,7 +412,7 @@ def generate_challenge(context, ekcert, aikpub, secret, ek=None):
     :param ekcert: The Endorsement Key certificate
     :param aikpub: The public Attestation Identity Key blob
     :param secret: The secret to challenge the TPM with
-    :param ek: TspiObject representing ek. ekcert is ignored if ek is provided.
+    :param ek: TspiKey representing ek. ekcert is ignored if ek is provided.
 
     :returns: a tuple containing the asymmetric and symmetric components of
     the challenge

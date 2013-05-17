@@ -370,7 +370,7 @@ class TspiTPM(TspiObject):
         modlen = ffi.new('BYTE **')
         tss_lib.Tspi_TPM_GetPubEndorsementKey(self.get_handle(), 1, ffi.NULL,
                                               keyblob)
-        key = TspiObject(self.context, None, None, None, handle=keyblob)
+        key = TspiKey(self.context, None, handle=keyblob)
         return key
 
     def take_ownership(self, srk):
