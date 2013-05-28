@@ -389,6 +389,9 @@ class TspiContext():
         self.context = self.context[0]
         self.tpm = None
 
+    def __del__(self):
+        tss_lib.Tspi_Context_Close(self.context)
+
     def connect(self, host=None):
         """
         Connect a context to a TSS daemon
