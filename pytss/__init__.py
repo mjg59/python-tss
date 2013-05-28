@@ -399,9 +399,10 @@ class TspiContext():
         :param host: The host to connect to, if not localhost
         """
         if host is not None:
-            chost = ffi.new('uint16_t[]', len(host))
+            chost = ffi.new('uint16_t[]', len(host) + 1)
             for i in range(len(host)):
                 chost[i] = bytearray(host)[i]
+            chost[len(host)] = 0
             tss_lib.Tspi_Context_Connect(self.context, chost)
         else:
             tss_lib.Tspi_Context_Connect(self.context, ffi.NULL)
