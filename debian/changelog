@@ -1,3 +1,9 @@
+pytss (0.1.0-1+nebula1) unstable; urgency=low
+
+  * Bumping version for 1.2
+
+ -- Kevin Tegtmeier <kevin.tegtmeier@nebula.com>  Thu, 06 Feb 2014 20:37:03 +0000
+
 pytss (0.1.0-1) unstable; urgency=low
 
   * source package automatically created by stdeb 0.6.0+git
