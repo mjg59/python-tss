@@ -7,6 +7,6 @@ Standards-Version: 3.9.1
 
 Package: python-pytss
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}
+Depends: ${misc:Depends}, ${python:Depends}, python-pyasn1
 Description: Python binding to libtspi
 
