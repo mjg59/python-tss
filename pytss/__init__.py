@@ -221,6 +221,9 @@ class TspiKey(TspiObject):
                                       tss_lib.TSS_OBJECT_TYPE_RSAKEY,
                                       flags, handle)
 
+    def __del__(self):
+        tss_lib.Tspi_Key_UnloadKey(self.get_handle())
+
     def set_modulus(self, n):
         """
         Set the key modulus
