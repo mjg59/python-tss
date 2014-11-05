@@ -384,6 +384,27 @@ class TspiTPM(TspiObject):
         """
         tss_lib.Tspi_TPM_TakeOwnership(self.get_handle(), srk.get_handle(), 0)
 
+    def extend_pcr(self, pcr, data, event):
+        """
+        Extend a PCR
+
+        :param pcr: The PCR to extend
+        :param data: The data to be hashed by the TPM for extending the PCR
+        :param event: A dict containing the event data
+
+        :returns: A bytearray containing the new PCR value
+        """
+        cdata = ffi.new('BYTE []', len(data))
+        bloblen = ffi.new('UINT32 *')
+        blob = ffi.new('BYTE **')
+        for i in range(len(data)):
+            cdata[i] = data[i]
+
+        tss_lib.Tspi_TPM_PcrExtend(self.get_handle(), pcr, len(data), cdata,
+                                   ffi.NULL, bloblen, blob)
+        ret = bytearray(blob[0][0:bloblen[0]])
+        tss_lib.Tspi_Context_FreeMemory(self.context, blob[0])
+        return ret
 
 class TspiContext():
     def __init__(self):
