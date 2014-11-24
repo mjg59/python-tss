@@ -1,4 +1,5 @@
 from interface import tss_lib, ffi
+import tspi_exceptions
 import hashlib
 
 
@@ -222,7 +223,12 @@ class TspiKey(TspiObject):
                                       flags, handle)
 
     def __del__(self):
-        tss_lib.Tspi_Key_UnloadKey(self.get_handle())
+        try:
+            tss_lib.Tspi_Key_UnloadKey(self.get_handle())
+        # The key may have been implicitly unloaded as part of a previous
+        # operation
+        except tspi_exceptions.TSS_E_INVALID_HANDLE:
+            pass
 
     def set_modulus(self, n):
         """
