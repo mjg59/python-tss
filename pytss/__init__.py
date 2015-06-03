@@ -138,10 +138,14 @@ class TspiPolicy(TspiObject):
         """
         Set the authorisation data of a policy object
 
-        :param sectype: The type of the secret
-        :param secret: The secret data blob
+        :param sectype: The type of the secret, any of the constants
+            prefixed TSS_SECRET_MODE_ in tspi_defines
+        :param secret: The secret data blob as either a string or
+            array of integers in the range 0..255
         """
         csecret = ffi.new('BYTE[]', len(secret))
+        if isinstance(secret, basestring):
+            secret = bytearray(secret)
         for i in range(len(secret)):
             csecret[i] = secret[i]
         tss_lib.Tspi_Policy_SetSecret(self.handle[0], sectype, len(secret), csecret)
