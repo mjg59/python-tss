@@ -218,6 +218,7 @@ class TspiHash(TspiObject):
 
 class TspiKey(TspiObject):
     def __init__(self, context, flags, handle=None):
+        self.context = context
         super(TspiKey, self).__init__(context, 'TSS_HKEY *',
                                       tss_lib.TSS_OBJECT_TYPE_RSAKEY,
                                       flags, handle)
@@ -265,6 +266,61 @@ class TspiKey(TspiObject):
         """
         return self.get_attribute_data(tss_lib.TSS_TSPATTRIB_RSAKEY_INFO,
                                        tss_lib.TSS_TSPATTRIB_KEYINFO_RSA_MODULUS)
+
+
+    def seal(self, data, pcrs=None):
+        """
+        Seal data to the local TPM using this key
+
+        :param data: The data to seal
+        :param pcrs: A list of PCRs to seal the data to
+
+        :returns: a bytearray of the encrypted data
+        """
+        encdata = TspiObject(self.context, 'TSS_HENCDATA *',
+                             tss_lib.TSS_OBJECT_TYPE_ENCDATA,
+                             tss_lib.TSS_ENCDATA_SEAL)
+
+        if pcrs is not None:
+            pcrobj=TspiPCRs(self.context, tss_lib.TSS_PCRS_STRUCT_INFO)
+            pcrobj.set_pcrs(pcrs)
+            pcr_composite = pcrobj.get_handle()
+        else:
+            pcr_composite = 0
+
+        cdata = ffi.new('BYTE[]', len(data))
+        for i in range(len(data)):
+            cdata[i] = data[i]
+
+        tss_lib.Tspi_Data_Seal(encdata.get_handle(), self.get_handle(),
+                               len(data), cdata, pcr_composite)
+        blob = encdata.get_attribute_data(tss_lib.TSS_TSPATTRIB_ENCDATA_BLOB,
+                                    tss_lib.TSS_TSPATTRIB_ENCDATABLOB_BLOB)
+        return bytearray(blob)
+
+    def unseal(self, data):
+        """
+        Unseal data from the local TPM using this key
+
+        :param data: The data to unseal
+
+        :returns: a bytearray of the unencrypted data
+        """
+        encdata = TspiObject(self.context, 'TSS_HENCDATA *',
+                             tss_lib.TSS_OBJECT_TYPE_ENCDATA,
+                             tss_lib.TSS_ENCDATA_SEAL)
+
+        encdata.set_attribute_data(tss_lib.TSS_TSPATTRIB_ENCDATA_BLOB,
+                                tss_lib.TSS_TSPATTRIB_ENCDATABLOB_BLOB, data)
+
+        bloblen = ffi.new('UINT32 *')
+        blob = ffi.new('BYTE **')
+
+        tss_lib.Tspi_Data_Unseal(encdata.get_handle(), self.get_handle(),
+                                 bloblen, blob)
+        ret = bytearray(blob[0][0:bloblen[0]])
+        tss_lib.Tspi_Context_FreeMemory(self.context, blob[0])
+        return ret
 
 
 class TspiTPM(TspiObject):
