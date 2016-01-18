@@ -138,13 +138,13 @@ class TspiPolicy(TspiObject):
         """
         Set the authorisation data of a policy object
 
-        :param sectype: The type of the secret
-        :param secret: The secret data blob
+        :param sectype: The type of the secret, any of the constants
+            prefixed TSS_SECRET_MODE_ in tspi_defines
+        :param secret: The secret data blob as either a string or
+            array of integers in the range 0..255
         """
-        csecret = ffi.new('BYTE[]', len(secret))
-        for i in range(len(secret)):
-            csecret[i] = secret[i]
-        tss_lib.Tspi_Policy_SetSecret(self.handle[0], sectype, len(secret), csecret)
+        tss_lib.Tspi_Policy_SetSecret(self.handle[0], sectype, len(secret),
+                                      _c_byte_array(secret))
 
     def assign(self, target):
         """
@@ -185,7 +185,6 @@ class TspiPCRs(TspiObject):
             tss_lib.Tspi_Context_FreeMemory(self.context, buf[0])
         return self.pcrs
 
-
 class TspiHash(TspiObject):
     def __init__(self, context, flags):
         super(TspiHash, self).__init__(context, 'TSS_HHASH *',
@@ -197,10 +196,8 @@ class TspiHash(TspiObject):
 
         :param data: The data to hash
         """
-        cdata = ffi.new('BYTE []', len(data))
-        for i in range(len(data)):
-            cdata[i] = data[i]
-        tss_lib.TspiHash_UpdateHashValue(self.get_handle(), len(data), cdata)
+        tss_lib.Tspi_Hash_UpdateHashValue(self.get_handle(), len(data),
+                                          _c_byte_array(data))
 
     def verify(self, key, signature):
         """
@@ -209,11 +206,20 @@ class TspiHash(TspiObject):
         :param key: A TspiObject representing the key to use
         :param signature: The signature to compare against
         """
-        cquote = ffi.new('BYTE []', len(quote))
-        for i in range(len(quote)):
-            cquote[i] = quote[i]
-        tss_lib.TspiHash_VerifySignature(self.get_handle(), key.get_handle(),
-                                     len(quote), cquote)
+        tss_lib.Tspi_Hash_VerifySignature(self.get_handle(), key.get_handle(),
+                                     len(signature), _c_byte_array(signature))
+
+    def sign(self, key):
+        """
+        Sign this hash with the specified key and return a signature
+
+        :param key: a TspiKey instance corresponding to a loaded key
+        :return: a string of bytes containing the signature
+        """
+        csig_size = ffi.new("UINT32*")
+        csig_data = ffi.new("BYTE**")
+        tss_lib.Tspi_Hash_Sign(self.get_handle(), key.get_handle(), csig_size, csig_data)
+        return ffi.buffer(csig_data[0], csig_size[0])
 
 
 class TspiKey(TspiObject):
@@ -576,3 +582,18 @@ class TspiContext():
     def get_tpm_object(self):
         """Returns the TspiTPM associated with this context"""        
         return self.tpm
+
+
+def _c_byte_array(data):
+    """
+    Creates and returns a ffi BYTE[] type containing data.
+    :param data: a string of bytes or array of integers in range 0x00..0xff
+    :return: ffi cdata instance backed by a c BYTE[] structure containing
+        the contents of data
+    """
+    cdata = ffi.new('BYTE []', len(data))
+    if isinstance(data, basestring):
+        data = bytearray(data)
+    for i in range(len(data)):
+        cdata[i] = data[i]
+    return cdata
